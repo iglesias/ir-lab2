@@ -1,14 +1,17 @@
-/*  
+/*
  *   This file is part of the computer assignment for the
  *   Information Retrieval course at KTH.
- * 
+ *
  *   First version:  Johan Boye, 2012
+ *   Student:        Fernando José Iglesias García, 2012
+ *
  */  
 
 import java.util.*;
 import java.io.*;
 
 public class PageRank{
+
 
     /**  
      *   Maximal number of documents. We're assuming here that we
@@ -53,7 +56,7 @@ public class PageRank{
      *   The probability that the surfer will be bored, stop
      *   following links, and take a random jump somewhere.
      */
-    final static double BORED = 0.15;
+    final static double BORED = 0.5;
 
     /**
      *   Convergence criterion: Transition probabilities do not 
@@ -158,9 +161,74 @@ public class PageRank{
      *   Computes the pagerank of each document.
      */
     void computePagerank( int numberOfDocs ) {
-	//
-	//   YOUR CODE HERE
-	//
+
+	// # of pages
+	int N = docNumber.size();
+	// PageRank vector
+	final ArrayList<Double> pi = new ArrayList<Double>(N);
+	// Check for convergence criterion
+	boolean stop = false;
+	int iterations = 0;
+
+	// Initial probabilities, assume the surfer is in a particular page?
+	pi.add(1.0);
+	for ( int i = 1 ; i < N ; ++i )
+	    pi.add(0.0);
+
+	// Power iteration algorithm
+	ArrayList<Double> piNext = new ArrayList<Double>(N);
+	for ( int i = 0 ; i < N ; ++i )
+	    piNext.add(0.0);
+
+	while ( iterations < MAX_NUMBER_OF_ITERATIONS && !stop ) {
+
+	    for ( int i = 0 ; i < N ; ++i ) {
+		// Initialize to the sum of the random jump for all the documents
+		piNext.set(i, BORED);
+		for ( int j = 0 ; j < N ; ++j ) {
+		    Hashtable<Integer, Boolean> outlinks = link.get(j);
+		    if ( outlinks != null )
+			if ( outlinks.get(i) != null && outlinks.get(i) )
+			    piNext.set(i, piNext.get(i) + (1-BORED) / outlinks.size() );
+		}
+	    }
+
+	    // Finish to iterate?
+	    stop = true;
+	    for ( int i = 0 ; i < N ; ++i ) {
+		if ( Math.abs( piNext.get(i) - pi.get(i) ) > EPSILON ) {
+		    stop = false;
+		    break;
+		}
+	    }
+
+	    // Update the PageRank vector
+	    for ( int i = 0 ; i < N ; ++i )
+		pi.set( i, piNext.get(i) );
+
+	    ++iterations;
+
+	}
+
+	System.err.println("Power iteration finished after " + iterations + " iterations");
+
+	// Sort the pages by rank
+
+	ArrayList<Integer> idxs = new ArrayList<Integer>(N);
+	for ( int i = 0 ; i < N ; ++i )
+	    idxs.add(i);
+
+	Collections.sort(idxs, new Comparator<Integer>() {
+		@Override public int compare(final Integer o1, final Integer o2) {
+		    return -1 * Double.compare( pi.get(o1), pi.get(o2) );
+		}
+	});
+
+	// Show the pages sorted
+	for ( int i = 0 ; i < N ; ++i )
+	    System.out.println(i + ". " + docName[ idxs.get(i) ] + " " 
+				+ pi.get( idxs.get(i) ) );
+
     }
 
 
