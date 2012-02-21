@@ -20,7 +20,7 @@ public class PageRank{
     final static int MAX_NUMBER_OF_DOCS = 2000000;
 
     static boolean DEBUG = false;
-
+        
     /**
      *   Mapping from document names to document numbers.
      */
@@ -166,7 +166,7 @@ public class PageRank{
 
 
         // pi is the PageRank, the probability distribution
-        final double[] pi = powerIteration(N);
+        final double[] pi = monteCarlo1(N);
 
 	// Sort the pages by rank
 
@@ -193,13 +193,13 @@ public class PageRank{
             }
             System.err.println(">>>> Sum(pi) = " + sum);
         }
-        
+
     }
 
     private double[] powerIteration( int N ) {
     
 	// PageRank vector
-	final double[] pi = new double[N];
+        double[] pi = new double[N];
 	// Check for convergence criterion
 	boolean stop = false;
 	int iterations = 0;
@@ -247,6 +247,97 @@ public class PageRank{
                     + iterations + " iterations");
 
         return pi;
+
+    }
+
+    /**
+     * Algorithm 1 described in Avrachenkov's et al. paper.
+     * Simulate N runs of a random walk initiated at a randomly chose page. 
+     * Evaluate the PageRank for each page as the fraction of random walks
+     * which end at that page.
+     *
+     * @return the PageRank vector
+     */
+    private double[] monteCarlo1( int N ) {
+    
+        // PageRank vector
+        double[] pi = new double[N];
+        // # random walks which end at every page
+        int[] end = new int[N];
+        for ( int i = 0 ; i < N ; ++i ) end[i] = 0;
+        
+        Random randomGen = new Random();
+
+        int nRandomWalks = N;
+        // Simulate the random walks
+        for ( int i = 0 ; i < nRandomWalks ; ++i ) {
+            // Choose randomly an initial page
+            int initPage = randomGen.nextInt(N);
+
+            ++end[ randomWalk(N, initPage) ];
+        }
+
+        for (int i = 0 ; i < N ; ++i ) {
+            pi[i] = end[i] / (double)nRandomWalks;
+        }
+
+        // --- DEBUG ---
+        if ( DEBUG )
+            System.err.println(">>>> Monte Carlo Algorithm 1 finished after "
+                    + nRandomWalks + " random walks");
+
+        return pi;
+
+    }
+
+    /**
+     * Simulation of random walk 
+     *
+     * @return the page where the walk ends
+     */
+    private int randomWalk( int N, int actualPage ) {
+    
+        // A random walk terminates with probability 1-C
+        final double C = 1-BORED;  // same as the one used in powerIteration?
+
+        double random;
+        boolean terminate = false;
+        while ( ! terminate ) {
+            
+            // Generate a random number to test termination of the random walk
+            random = Math.random();
+            if ( random < (1 - C) ) {
+                terminate = true;
+            } else {
+                // Generate a random number to make the transition to another page
+                random = 1 - Math.random();  // random is in (0, 1]
+                // Cumulative probability of the transitions already explored
+                double cumsum = 0.0;
+                for ( int i = 0 ; i < N ; ++i ) {
+
+                    // Read the probability of going to page i from actualPage
+                    double pij = 0.0;
+                    Hashtable<Integer, Boolean> outlinks = link.get(actualPage);
+                    if ( outlinks == null )
+                        pij = 1 / (double)N;
+                    else if ( outlinks.get(i) != null && outlinks.get(i) )
+                        pij = 1 / (double)outlinks.size();
+
+                    // The jump to i is allow if the transistion prob. is non-zero
+                    if ( pij != 0.0 )
+                        if ( random > cumsum && random <= cumsum + pij ) {
+                            actualPage = i;
+                            break;
+                        }
+                    
+                    cumsum += pij;
+
+                }
+            }
+
+        }
+
+        return actualPage;
 
     }
 
