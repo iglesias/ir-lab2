@@ -166,7 +166,7 @@ public class PageRank{
 
 
         // pi is the PageRank, the probability distribution
-        final double[] pi = monteCarlo1(N);
+        final double[] pi = monteCarlo1(N, N*N);
 
 	// Sort the pages by rank
 
@@ -181,7 +181,7 @@ public class PageRank{
 
 	// Show the pages sorted
 	for ( int i = 0 ; i < N ; ++i )
-	    System.out.println(i + ". " + docName[ idxs[i] ] + " " + pi[ idxs[i] ] );
+	    System.out.println(i+1 + ". " + docName[ idxs[i] ] + " " + pi[ idxs[i] ] );
 
         
         // --- DEBUG ---
@@ -258,7 +258,7 @@ public class PageRank{
      *
      * @return the PageRank vector
      */
-    private double[] monteCarlo1( int N ) {
+    private double[] monteCarlo1( int N, int nRandomWalks ) {
     
         // PageRank vector
         double[] pi = new double[N];
@@ -268,7 +268,6 @@ public class PageRank{
         
         Random randomGen = new Random();
 
-        int nRandomWalks = N;
         // Simulate the random walks
         for ( int i = 0 ; i < nRandomWalks ; ++i ) {
             // Choose randomly an initial page
