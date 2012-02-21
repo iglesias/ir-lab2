@@ -19,6 +19,8 @@ public class PageRank{
      */
     final static int MAX_NUMBER_OF_DOCS = 2000000;
 
+    static boolean DEBUG = false;
+
     /**
      *   Mapping from document names to document numbers.
      */
@@ -160,22 +162,53 @@ public class PageRank{
     /*
      *   Computes the pagerank of each document.
      */
-    void computePagerank( int numberOfDocs ) {
+    void computePagerank( int N ) {
 
-	// # of pages
-	int N = numberOfDocs;
+
+        // pi is the PageRank, the probability distribution
+        final double[] pi = powerIteration(N);
+
+	// Sort the pages by rank
+
+	Integer[] idxs = new Integer[N];
+	for ( int i = 0 ; i < N ; ++i ) idxs[i] = i;
+
+	Arrays.sort(idxs, new Comparator<Integer>() {
+		@Override public int compare(final Integer o1, final Integer o2) {
+		    return -1 * Double.compare( pi[o1], pi[o2] );
+		}
+	});
+
+	// Show the pages sorted
+	for ( int i = 0 ; i < N ; ++i )
+	    System.out.println(i + ". " + docName[ idxs[i] ] + " " + pi[ idxs[i] ] );
+
+        
+        // --- DEBUG ---
+        // Sum the elements of the PageRank
+        if ( DEBUG ) {
+            double sum = 0.0;
+            for ( int i = 0 ; i < N ; ++i ) {
+                sum += pi[i];
+            }
+            System.err.println(">>>> Sum(pi) = " + sum);
+        }
+        
+    }
+
+    private double[] powerIteration( int N ) {
+    
 	// PageRank vector
 	final double[] pi = new double[N];
 	// Check for convergence criterion
 	boolean stop = false;
 	int iterations = 0;
 
-	// Initial probabilities, assume the surfer is in a particular page?
+	// Initial probabilities, assume the surfer is in a particular page
 	pi[0] = 1.0;
 	for ( int i = 1 ; i < N ; ++i )
 	    pi[i] = 0.0;
 
-	// Power iteration algorithm
 	double[] piNext = new double[N];
 
 	while ( iterations < MAX_NUMBER_OF_ITERATIONS && !stop ) {
@@ -195,63 +228,40 @@ public class PageRank{
 
 	    // Finish to iterate?
 	    stop = true;
-	    for ( int i = 0 ; i < N ; ++i ) {
+	    for ( int i = 0 ; i < N ; ++i )
 		if ( Math.abs( piNext[i] - pi[i] ) > EPSILON ) {
 		    stop = false;
 		    break;
 		}
-	    }
 
 	    // Update the PageRank vector
-	    for ( int i = 0 ; i < N ; ++i )
-		pi[i] = piNext[i];
+	    for ( int i = 0 ; i < N ; ++i ) pi[i] = piNext[i];
 
 	    ++iterations;
 
-            double sum = 0.0;
-            for ( int i = 0 ; i < N ; ++i )
-              sum += pi[i];
-
 	}
 
-	System.err.println("Power iteration finished after " + iterations + " iterations");
-
-	// Sort the pages by rank
-
-	Integer[] idxs = new Integer[N];
-	for ( int i = 0 ; i < N ; ++i ) idxs[i] = i;
-
-	Arrays.sort(idxs, new Comparator<Integer>() {
-		@Override public int compare(final Integer o1, final Integer o2) {
-		    return -1 * Double.compare( pi[o1], pi[o2] );
-		}
-	});
-
-	// Show the pages sorted
-	for ( int i = 0 ; i < N ; ++i )
-	    System.out.println(i + ". " + docName[ idxs[i] ] + " " + pi[ idxs[i] ] );
-
-        /*
         // --- DEBUG ---
-        // Sum the elements of the PageRank
-        
-        double sum = 0.0;
-        for ( int i = 0 ; i < N ; ++i ) {
-          sum += pi[i];
-        }
-        System.err.println("\nSum(pi) = " + sum + "\n");
-        */
-        
-    }
+        if ( DEBUG )
+	    System.err.println(">>>> Power iteration finished after " 
+                    + iterations + " iterations");
 
+        return pi;
+
+    }
 
     /* --------------------------------------------- */
 
 
     public static void main( String[] args ) {
-	if ( args.length != 1 ) {
+	if ( args.length < 1 ) {
 	    System.err.println( "Please give the name of the link file" );
 	}
+        else if ( args.length > 1 && args[1].equals("debug") ) {
+            System.err.println(">>>> DEBUG mode activated");
+            DEBUG = true;
+            new PageRank( args[0] );
+        }
 	else {
 	    new PageRank( args[0] );
 	}
