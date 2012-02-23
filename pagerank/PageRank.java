@@ -61,6 +61,11 @@ public class PageRank{
     final static double BORED = 0.15;
 
     /**
+     *  A random walk terminates with propbability 1-C
+     */
+    final static double C = 1 - BORED;  //TODO use the same as BORED?
+
+    /**
      *   Convergence criterion: Transition probabilities do not 
      *   change more that EPSILON from one iteration to another.
      */
@@ -166,7 +171,8 @@ public class PageRank{
 
 
         // pi is the PageRank, the probability distribution
-        final double[] pi = monteCarlo1(N, N*N);
+        final double[] pi = monteCarlo4( N, 1 );
+        //final double[] pi = powerIteration( N );
 
 	// Sort the pages by rank
 
@@ -252,7 +258,7 @@ public class PageRank{
 
     /**
      * Algorithm 1 described in Avrachenkov's et al. paper.
-     * Simulate N runs of a random walk initiated at a randomly chose page. 
+     * Simulate n runs of a random walk initiated at a randomly chose page. 
      * Evaluate the PageRank for each page as the fraction of random walks
      * which end at that page.
      *
@@ -290,14 +296,88 @@ public class PageRank{
     }
 
     /**
+     * Algorithm 4 described in Avrachenkov's et al. paper, complete path
+     * stopping at dangling nodes.
+     * Simulate random walks starting exactly m times from each page. Evaluate 
+     * the PageRank for each page as the fraction of visits to that page divided
+     * by the total number of visited pages.
+     *
+     * @return the PageRank vector
+     */
+    private double[] monteCarlo4( int N, int m ) {
+    
+        // PageRank vector
+        double[] pi = new double[N];
+        // # random visits to every page        
+        int[] visits = new int[N];
+        for ( int i = 0 ; i < N ; ++i ) visits[i] = 0;
+        // Total number of visits
+        int totalVisits = 0;
+        
+        // Simulate the random walks
+        for ( int i = 0 ; i < m ; ++i )
+            for ( int j = 0 ; j < N ; ++j )
+                totalVisits += randomWalk(N, j, visits);
+
+        for (int i = 0 ; i < N ; ++i )
+            pi[i] = visits[i] / (double)totalVisits;
+
+        // --- DEBUG ---
+        if ( DEBUG )
+            System.err.println(">>>> Monte Carlo Algorithm 4 finished after "
+                    + m + " random walks from each page");
+
+        return pi;
+
+    }
+
+    /**
+     * Algorithm 5 described in Avrachenkov's et al. paper, complete path
+     * with random start (stopping at dangling nodes also).
+     * Simulate n random walks starting at a random page. Evaluate the PageRank 
+     * for each page as the fraction of visits to that page divided by the total 
+     * number of visited pages.
+     *
+     * @return the PageRank vector
+     */
+    private double[] monteCarlo5( int N, int nRandomWalks ) {
+    
+        // PageRank vector
+        double[] pi = new double[N];
+        // # random visits to every page        
+        int[] visits = new int[N];
+        for ( int i = 0 ; i < N ; ++i ) visits[i] = 0;
+        // Total number of visits
+        int totalVisits = 0;
+      
+        Random randomGen = new Random();
+
+        // Simulate the random walks
+        for ( int i = 0 ; i < nRandomWalks ; ++i ) {
+            // Choose randomly an initial page
+            int initPage = randomGen.nextInt(N);
+
+            totalVisits += randomWalk(N, initPage, visits);
+        }
+
+        for (int i = 0 ; i < N ; ++i )
+            pi[i] = visits[i] / (double)totalVisits;
+
+        // --- DEBUG ---
+        if ( DEBUG )
+            System.err.println(">>>> Monte Carlo Algorithm 5 finished after "
+                    + nRandomWalks + " random walks");
+
+        return pi;
+
+    }
+
+    /**
      * Simulation of random walk 
      *
      * @return the page where the walk ends
      */
     private int randomWalk( int N, int actualPage ) {
-    
-        // A random walk terminates with probability 1-C
-        final double C = 1-BORED;  // same as the one used in powerIteration?
 
         double random;
         boolean terminate = false;
@@ -308,7 +388,7 @@ public class PageRank{
             if ( random < (1 - C) ) {
                 terminate = true;
             } else {
-                // Generate a random number to make the transition to another page
+                // Generate a random number to do the transition to another page
                 random = 1 - Math.random();  // random is in (0, 1]
                 // Cumulative probability of the transitions already explored
                 double cumsum = 0.0;
@@ -322,7 +402,7 @@ public class PageRank{
                     else if ( outlinks.get(i) != null && outlinks.get(i) )
                         pij = 1 / (double)outlinks.size();
 
-                    // The jump to i is allow if the transistion prob. is non-zero
+                    // Jump to i allowed if the transistion prob. is non-zero
                     if ( pij != 0.0 )
                         if ( random > cumsum && random <= cumsum + pij ) {
                             actualPage = i;
@@ -337,6 +417,61 @@ public class PageRank{
         }
 
         return actualPage;
+
+    }
+
+    /**
+     * Simulation of random walk 
+     *
+     * @return number of visited pages
+     */
+    private int randomWalk( int N, int actualPage, int[] visits ) {
+
+        int totalVisits = 0;
+        double random;
+        boolean terminate = false;
+        while ( ! terminate ) {
+            
+            // Update statistics
+            ++totalVisits;
+            ++visits[ actualPage ];
+
+            // Generate a random number to test termination of the random walk
+            random = Math.random();
+            if ( random < (1 - C) ) {
+                terminate = true;
+            } else {
+                // Generate a random number to do the transition to another page
+                random = 1 - Math.random();  // random is in (0, 1]
+                // Cumulative probability of the transitions already explored
+                double cumsum = 0.0;
+                for ( int i = 0 ; i < N ; ++i ) {
+
+                    // Read the probability of going to page i from actualPage
+                    double pij = 0.0;
+                    Hashtable<Integer, Boolean> outlinks = link.get(actualPage);
+                    if ( outlinks == null ) { 
+                        // Dangling node (wihtout no outlinks)
+                        terminate = true;
+                        break;
+                    } else if ( outlinks.get(i) != null && outlinks.get(i) )
+                        pij = 1 / (double)outlinks.size();
+
+                    // Jump to i allowed if the transistion prob. is non-zero
+                    if ( pij != 0.0 )
+                        if ( random > cumsum && random <= cumsum + pij ) {
+                            actualPage = i;
+                            break;
+                        }
+                    
+                    cumsum += pij;
+
+                }
+            }
+
+        }
+
+        return totalVisits;
 
     }
 
